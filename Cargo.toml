@@ -1,6 +1,6 @@
 [package]
 name = "overtls"
-version = "0.2.40"
+version = "0.2.41"
 edition = "2021"
 license = "MIT"
 description = "A simple proxy tunnel, minimalist tool for bypassing the GFW."
@@ -70,4 +70,4 @@ android_logger = "0.14"
 jni = { version = "0.21", default-features = false }
 
 [target.'cfg(target_os = "windows")'.dependencies]
-windows-service = "0.7"
+windows-service = "0.8"
