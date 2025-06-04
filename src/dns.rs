@@ -26,8 +26,7 @@ pub(crate) fn extract_ipaddr_from_dns_message(message: &Message) -> std::io::Res
     }
     let mut cname = None;
     for answer in message.answers() {
-        let err = std::io::Error::new(std::io::ErrorKind::Other, "DNS response not contains answer data");
-        match answer.data().ok_or(err)? {
+        match answer.data() {
             RData::A(addr) => {
                 return Ok(IpAddr::V4((*addr).into()));
             }
@@ -41,13 +40,13 @@ pub(crate) fn extract_ipaddr_from_dns_message(message: &Message) -> std::io::Res
         }
     }
     if let Some(cname) = cname {
-        return Err(std::io::Error::new(std::io::ErrorKind::Other, cname));
+        return Err(std::io::Error::other(cname));
     }
-    Err(std::io::Error::new(std::io::ErrorKind::Other, format!("{:?}", message.answers())))
+    Err(std::io::Error::other(format!("{:?}", message.answers())))
 }
 
 pub(crate) fn extract_domain_from_dns_message(message: &Message) -> std::io::Result<String> {
-    let err = std::io::Error::new(std::io::ErrorKind::Other, "DNS request not contains query body");
+    let err = std::io::Error::other("DNS request not contains query body");
     let query = message.queries().first().ok_or(err)?;
     let name = query.name().to_string();
     Ok(name)

@@ -1,6 +1,7 @@
 name: Check
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - '**'
@@ -16,7 +17,7 @@ jobs:
     name: Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -30,7 +31,7 @@ jobs:
     name: Rustfmt
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -46,7 +47,7 @@ jobs:
     name: Clippy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -98,19 +99,24 @@ jobs:
       run: |
         rustc --version
         rustup target add ${{ matrix.target }}
-      
+
+    - name: Install cross
+      if: ${{ matrix.host_os == 'ubuntu-latest' && matrix.target != 'x86_64-unknown-linux-gnu' }}
+      run: |
+        cargo install cross --git https://github.com/cross-rs/cross --rev 36c0d78
+        cross --version
+
     - name: Build
       if: ${{ !cancelled() }}
       shell: bash
       run: |
-        if [[ "${{ matrix.host_os }}" == "ubuntu-latest" ]]; then
-          sudo .github/workflows/install-cross.sh
+        if [[ "${{ matrix.host_os }}" == "ubuntu-latest" && "${{ matrix.target }}" != "x86_64-unknown-linux-gnu" ]]; then
           cross build --verbose --target ${{ matrix.target }}
-          if [[ "${{ matrix.target }}" == "x86_64-unknown-linux-gnu" ]]; then
-            ./build-android.sh debug aarch64-linux-android
-          fi
         else
           cargo build --verbose --target ${{ matrix.target }}
+        fi
+        if [[ "${{ matrix.target }}" == "x86_64-unknown-linux-gnu" ]]; then
+          ./build-android.sh debug aarch64-linux-android
         fi
 
     - name: Run tests
