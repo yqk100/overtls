@@ -317,7 +317,7 @@ function write_overtls_config_file() {
     local identity=$(random_string_gen 4)
     local self_signed_cert_file="${self_sign_dir}/server.crt"
     local self_signed_key_file="${self_sign_dir}/server.key"
-    local self_signed_root_ca_file="${self_sign_dir}/ca.crt"
+    local self_signed_root_ca_file="${self_sign_dir}/root.crt"
 
     cat > ${local_cfg_file_path} <<EOF
 {
@@ -338,6 +338,7 @@ function write_overtls_config_file() {
         "server_port": ${web_svr_reverse_proxy_port},
         "server_domain": "${web_svr_domain}",
         "cafile": "${self_signed_root_ca_file}",
+        "dangerous_mode": false,
         "listen_host": "127.0.0.1",
         "listen_port": 1080
     }
@@ -511,7 +512,9 @@ function install_overtls_remote_server() {
     dependency_install
 
     web_svr_reverse_proxy_port=`random_listen_port`
-    web_svr_domain=$(random_string_gen 10)".com"
+
+    local domain_length=$(shuf -i 8-16 -n 1)
+    web_svr_domain=$(random_string_gen ${domain_length})".com"
 
     web_svr_local_ip_addr=$(get_vps_valid_ip)
     local exit_status=$?
