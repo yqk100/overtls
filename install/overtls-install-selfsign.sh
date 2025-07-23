@@ -75,6 +75,28 @@ export web_svr_domain=""
 export web_svr_local_ip_addr=""
 export web_svr_reverse_proxy_host="0.0.0.0"
 export web_svr_reverse_proxy_port=10000
+export dangerous_mode="false"
+
+function ask_dangerous_mode() {
+    echo
+    echo -e "${Yellow}警告: dangerous_mode 會跳過 SSL/TLS 證書驗證 ${Font}"
+    echo -e "${Yellow}Warning: dangerous_mode will skip SSL/TLS certificate verification ${Font}"
+    echo -e "${Yellow}這會降低安全性，但可能在某些網絡環境下提高連接成功率 ${Font}"
+    echo -e "${Yellow}This reduces security but may improve connection success in some network environments ${Font}"
+    echo
+    local enable_dangerous=""
+    stty erase '^H' && read -p "是否啟用 dangerous_mode? (y/N): " enable_dangerous
+    case ${enable_dangerous} in
+        [yY][eE][sS]|[yY])
+            echo -e "${OK} ${Yellow} dangerous_mode 已啟用 ${Font}"
+            return 0  # Success
+            ;;
+        *)
+            echo -e "${OK} ${GreenBG} dangerous_mode 保持關閉 ${Font}"
+            return 1  # Failure
+            ;;
+    esac
+}
 
 function random_string_gen() {
     local PASS=""
@@ -167,7 +189,7 @@ function judge() {
 }
 
 function dependency_install() {
-    ${INSTALL_CMD} install curl wget git lsof -y
+    ${INSTALL_CMD} install qrencode curl wget git lsof -y
 
     if [[ "${ID}" == "centos" ]]; then
         ${INSTALL_CMD} -y install crontabs bc unzip
@@ -338,7 +360,7 @@ function write_overtls_config_file() {
         "server_port": ${web_svr_reverse_proxy_port},
         "server_domain": "${web_svr_domain}",
         "cafile": "${self_signed_root_ca_file}",
-        "dangerous_mode": false,
+        "dangerous_mode": ${dangerous_mode},
         "listen_host": "127.0.0.1",
         "listen_port": 1080
     }
@@ -498,6 +520,17 @@ function print_url() {
 
     local qrcode="$( ${ot_exe_path} -g -c ${ot_cfg_path} )"
     echo "${qrcode}"
+    echo
+    echo
+
+    if [[ ${dangerous_mode} == "true" ]]; then
+        echo -e "${Yellow}Warning: dangerous_mode is enabled, SSL/TLS verification is skipped! ${Font}"
+        echo -e "${Yellow}注意: 由於啟用了危險模式, SSL/TLS 驗證被跳過！ ${Font}"
+        qrencode -t UTF8 "${qrcode}" | cat
+    else
+        echo -e "${Green}Note: QR code not displayed because config is too long (contains certificate content) ${Font}"
+        echo -e "${Green}注意: 由於配置包含證書文件，內容過長，不顯示二維碼 ${Font}"
+    fi
 }
 
 function cron_random_restart_overtls_svc() {
@@ -516,11 +549,19 @@ function install_overtls_remote_server() {
     local domain_length=$(shuf -i 8-16 -n 1)
     web_svr_domain=$(random_string_gen ${domain_length})".com"
 
+    echo -e "${Info} ${GreenBG} The web server domain is: ${web_svr_domain} ${Font}"
+
     web_svr_local_ip_addr=$(get_vps_valid_ip)
     local exit_status=$?
     if [[ $exit_status -ne 0 ]]; then
         echo "No valid IP found."
         exit 1
+    fi
+
+    if ask_dangerous_mode; then
+        dangerous_mode="true"
+    else
+        dangerous_mode="false"
     fi
 
     do_uninstall_service_action
